@@ -1,0 +1,13 @@
+name: Trustify CI
+
+on: ["push", "pull_request"]
+
+concurrency:
+  group: Trustify-CI-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    uses: ./.github/workflows/global-ci.yml
+    with:
+      operator_bundle: "ghcr.io/trustification/trustify-operator-bundle:latest"

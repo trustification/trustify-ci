@@ -1,0 +1,357 @@
+name: Run global Trustify CI tests
+
+on:
+  workflow_call:
+    inputs:
+      artifact:
+        description: |
+          The name of the component being tested, ie server etc.
+          Must correspond to an artifact storing the custom built image, named <artifact>,
+          and should contain the file <artifact>.tar inside.
+        required: false
+        type: string
+      operator_bundle:
+        description: image uri for operator-bundle (ie. ghcr.io/<namespace>/<image-name>:<tag>). Must be pullable.
+        type: string
+        required: false
+        default: ""
+      server_image:
+        description: image uri for the server (ie. ghcr.io/<namespace>/<image-name>:<tag>)
+        type: string
+        required: false
+        default: ""
+      server_db_image:
+        description: image uri for server-postgres (ie. ghcr.io/<namespace>/<image-name>:<tag>)
+        type: string
+        required: false
+        default: ""
+      run_api_tests:
+        description: |
+          A flag that determines whether the API tests should be run or not
+        type: boolean
+        required: false
+        default: true
+      run_ui_tests:
+        description: |
+          A flag that determines whether the UI tests should be run or not
+        type: boolean
+        required: false
+        default: true
+      api_tests_ref:
+        description: |
+          The branch or PR of the trustify-api-tests repository to clone.
+          For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
+          For a branch, the reference format would just be the branch name.
+          This input can be set automatically on a pull request by adding a string of the format:
+            API tests PR: 140
+          replacing "140" with the appropriate PR number. This will make it easier to coordinate changes
+          that require updating the global tests as well.
+        required: false
+        type: string
+        default: main
+      ui_tests_ref:
+        description: |
+          The branch or PR of the trustify-ui-tests repository to clone.
+          For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
+          For a branch, the reference format would just be the branch name.
+          This input can be set automatically on a pull request by adding a string of the format:
+            UI tests PR: 140
+          replacing "140" with the appropriate PR number. This will make it easier to coordinate changes
+          that require updating the global tests as well.
+        required: false
+        type: string
+        default: main
+  workflow_dispatch:
+    inputs:
+      artifact:
+        description: |
+          The name of the component being tested, ie server etc.
+          Must correspond to an artifact storing the custom built image, named <artifact>,
+          and should contain the file <artifact>.tar inside.
+        required: false
+        type: string
+      operator_bundle:
+        description: image uri for operator-bundle (ie. ghcr.io/<namespace>/<image-name>:<tag>). Must be pullable.
+        type: string
+        required: false
+        default: ""
+      server_image:
+        description: image uri for the server (ie. ghcr.io/<namespace>/<image-name>:<tag>)
+        type: string
+        required: false
+        default: ""
+      server_db_image:
+        description: image uri for server-postgres (ie. ghcr.io/<namespace>/<image-name>:<tag>)
+        type: string
+        required: false
+        default: ""
+      run_api_tests:
+        description: |
+          A flag that determines whether the API tests should be run or not
+        type: boolean
+        required: false
+        default: true
+      run_ui_tests:
+        description: |
+          A flag that determines whether the UI tests should be run or not
+        type: boolean
+        required: true
+        default: true
+      api_tests_ref:
+        description: |
+          The branch or PR of the trustify-api-tests repository to clone.
+          For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
+          For a branch, the reference format would just be the branch name.
+          This input can be set automatically on a pull request by adding a string of the format:
+            Go tests PR: 140
+          replacing "140" with the appropriate PR number. This will make it easier to coordinate changes
+          that require updating the global tests as well.
+        required: false
+        type: string
+        default: main
+      ui_tests_ref:
+        description: |
+          The branch or PR of the trustify-ui-tests repository to clone.
+          For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
+          For a branch, the reference format would just be the branch name.
+          This input can be set automatically on a pull request by adding a string of the format:
+            UI tests PR: 140
+          replacing "140" with the appropriate PR number. This will make it easier to coordinate changes
+          that require updating the global tests as well.
+        required: false
+        type: string
+        default: main
+
+env:
+  operator_bundle: ttl.sh/trustify-operator-bundle-${{ github.sha }}:2h
+
+jobs:
+  check-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check operator image exists
+        if: ${{ inputs.operator_bundle != '' }}
+        env:
+          SERVER: ${{ inputs.server_image }}
+          SERVER_DB: ${{ inputs.server_db_image }}
+        run: |
+          # My cheap way to check if any other image is set
+          if [ -n "${SERVER}${SERVER_DB}" ]; then
+            echo "::warning:: operator_bundle takes precendent over any other image specified!"
+            echo "::warning:: consider removing the image and setting it on the Trustify CR."
+          fi
+      - name: Check operator bundle image exists
+        if: ${{ inputs.operator_bundle != '' }}
+        run: docker manifest inspect ${{ inputs.operator_bundle }}
+      - name: Check server image exists
+        if: ${{ inputs.server_image != '' }}
+        run: docker manifest inspect ${{ inputs.server_image }}
+      - name: Check server_db_image image exists
+        if: ${{ inputs.server_db_image != '' }}
+        run: docker manifest inspect ${{ inputs.server_db_image }}
+
+  e2e-api-integration-tests:
+    needs: check-images
+    runs-on: ubuntu-latest
+    if: ${{ inputs.run_api_tests }}
+    steps:
+      - name: Extract pull request number from inputs or PR description
+        env:
+          body: ${{ github.event.pull_request.body }}
+        run: |
+          PULL_REQUEST_NUMBER=$(echo ${body} | grep -oP '[A|a][P|p][I|i] [T|t]ests [P|p][R|r]: \K\d+' || true)
+          [ -z "$PULL_REQUEST_NUMBER" ] \
+            && API_TESTS_REF=${{ inputs.api_tests_ref }} \
+            || API_TESTS_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
+
+          echo "API_TESTS_REF=${API_TESTS_REF}" >>"$GITHUB_ENV"
+          echo "Using API_TESTS_REF \`${API_TESTS_REF}\`" >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Checkout api tests repo
+        uses: actions/checkout@v4
+        with:
+          repository: trustification/trustify-api-tests
+          path: trustify-api-tests
+          ref: "${{ env.API_TESTS_REF }}"
+
+      # TODO Should DRY this
+      - name: set up docker buildx
+        if: "${{ inputs.artifact != '' }}"
+        uses: docker/setup-buildx-action@v2
+
+      - name: Download artifact
+        if: "${{ inputs.artifact != '' }}"
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.artifact }}
+          path: /tmp
+
+      - name: start minikube
+        uses: trustification/trustify-operator/.github/actions/start-minikube@main
+        with:
+          memory: "max"
+          cpus: "max"
+
+      - name: Load images
+        if: ${{ inputs.artifact != '' }}
+        run: |
+          export SHELL=/bin/bash
+          eval $(minikube -p minikube docker-env)
+          docker load --input /tmp/${{ inputs.artifact }}.tar
+
+      - name: Make bundle
+        if: ${{ inputs.operator_bundle == '' }}
+        uses: trustification/trustify-operator/.github/actions/make-bundle@main
+        with:
+          operator_bundle: ${{ env.operator_bundle }}
+          server: ${{ inputs.server_image }}
+          server_postgres: ${{ inputs.server_db_image }}
+      - name: Push bundle
+        if: ${{ inputs.operator_bundle == '' }}
+        run: docker push ${operator_bundle}
+
+      - name: prepare trustify-cr
+        run: |
+          [ -n "${{ inputs.server_image }}" ] && SERVER_IMAGE=\"${{ inputs.server_image }}\" || SERVER_IMAGE=null
+          [ -n "${{ inputs.server_db_image }}" ] && SERVER_DB_IMAGE=\"${{ inputs.server_db_image }}\" || SERVER_DB_IMAGE=null
+          echo "SERVER_IMAGE=${SERVER_IMAGE}" >>"$GITHUB_ENV"
+          echo "SERVER_DB_IMAGE=${SERVER_DB_IMAGE}" >>"$GITHUB_ENV"
+      - name: install trustify
+        uses: trustification/trustify-operator/.github/actions/install-trustify@main
+        with:
+          operator-bundle-image: ${{ inputs.operator_bundle || env.operator_bundle }}
+          trustify-cr: '{"kind":"Trustify","apiVersion":"org.trustify/v1alpha1","metadata":{"name":"myapp"},"spec":{"serverImage":${{ env.SERVER_IMAGE }},"dbImage":${{ env.SERVER_DB_IMAGE }},"imagePullPolicy":"IfNotPresent"}}'
+      # end DRY
+
+      - name: Wait for Ingress and expose Trustify URL
+        run: |
+          external_ip=""
+          echo $external_ip;
+          while [[ -z $external_ip ]]
+            do
+              echo "Waiting for end point..."
+                external_ip=$(kubectl get ingress myapp-trustify-server-ingress --template="{{range.status.loadBalancer.ingress}}{{.ip}}{{end}}" -n trustify);[[ -z $external_ip ]] &&
+                echo $external_ip;
+                sleep 10;
+            done
+          echo "End point ready:" &&
+          echo $external_ip;
+          echo "TRUSTIFY_URL=https://$(minikube ip)" >>$GITHUB_ENV
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Run tests
+        run: mvn verify
+        working-directory: trustify-api-tests
+        env:
+          TRUSTIFY_URL: "${{ env.TRUSTIFY_URL }}"
+
+  e2e-ui-integration-tests:
+    needs: check-images
+    if: ${{ inputs.run_ui_tests }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract pull request number from inputs or PR description
+        env:
+          body: ${{ github.event.pull_request.body }}
+        run: |
+          PULL_REQUEST_NUMBER=$(echo ${body} | grep -oP '[U|u][I|i] [T|t]ests [P|p][R|r]: \K\d+' || true)
+          [ -z "$PULL_REQUEST_NUMBER" ] \
+            && UI_TESTS_REF=${{ inputs.ui_tests_ref }} \
+            || UI_TESTS_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
+
+          echo "UI_TESTS_REF=${UI_TESTS_REF}" >>"$GITHUB_ENV"
+          echo "Using UI_TESTS_REF \`${UI_TESTS_REF}\`" >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Checkout ui tests repo
+        uses: actions/checkout@v4
+        with:
+          repository: trustification/trustify-ui-tests
+          path: trustify-ui-tests
+          ref: "${{ env.UI_TESTS_REF }}"
+
+      # TODO Should DRY this
+      - name: set up docker buildx
+        if: "${{ inputs.artifact != '' }}"
+        uses: docker/setup-buildx-action@v2
+
+      - name: Download artifact
+        if: "${{ inputs.artifact != '' }}"
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.artifact }}
+          path: /tmp
+
+      - name: start minikube
+        uses: trustification/trustify-operator/.github/actions/start-minikube@main
+        with:
+          memory: "max"
+          cpus: "max"
+
+      - name: Load images
+        if: ${{ inputs.artifact != '' }}
+        run: |
+          export SHELL=/bin/bash
+          eval $(minikube -p minikube docker-env)
+          docker load --input /tmp/${{ inputs.artifact }}.tar
+
+      - name: Make bundle
+        if: ${{ inputs.operator_bundle == '' }}
+        uses: trustification/trustify-operator/.github/actions/make-bundle@main
+        with:
+          operator_bundle: ${{ env.operator_bundle }}
+          server: ${{ inputs.server_image }}
+          server_postgres: ${{ inputs.server_db_image }}
+      - name: Push bundle
+        if: ${{ inputs.operator_bundle == '' }}
+        run: docker push ${operator_bundle}
+
+      - name: prepare trustify-cr
+        run: |
+          [ -n "${{ inputs.server_image }}" ] && SERVER_IMAGE=\"${{ inputs.server_image }}\" || SERVER_IMAGE=null
+          [ -n "${{ inputs.server_db_image }}" ] && SERVER_DB_IMAGE=\"${{ inputs.server_db_image }}\" || SERVER_DB_IMAGE=null
+          echo "SERVER_IMAGE=${SERVER_IMAGE}" >>"$GITHUB_ENV"
+          echo "SERVER_DB_IMAGE=${SERVER_DB_IMAGE}" >>"$GITHUB_ENV"
+      - name: install trustify
+        uses: trustification/trustify-operator/.github/actions/install-trustify@main
+        with:
+          operator-bundle-image: ${{ inputs.operator_bundle || env.operator_bundle }}
+          trustify-cr: '{"kind":"Trustify","apiVersion":"org.trustify/v1alpha1","metadata":{"name":"myapp"},"spec":{"serverImage":${{ env.SERVER_IMAGE }},"dbImage":${{ env.SERVER_DB_IMAGE }},"imagePullPolicy":"IfNotPresent"}}'
+      # end DRY
+
+      - name: Wait for Ingress and expose Trustify service
+        run: |
+          external_ip=""
+          echo $external_ip;
+          while [[ -z $external_ip ]]
+            do
+              echo "Waiting for end point..."
+                external_ip=$(kubectl get ingress myapp-trustify-server-ingress --template="{{range.status.loadBalancer.ingress}}{{.ip}}{{end}}" -n trustify);[[ -z $external_ip ]] &&
+                echo $external_ip;
+                sleep 10;
+            done
+          echo "End point ready:" &&
+          echo $external_ip;
+          echo "TRUSTIFY_URL=https://$(minikube ip)" >>$GITHUB_ENV
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+        working-directory: trustify-ui-tests
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+        working-directory: trustify-ui-tests
+      - name: Run Playwright tests
+        run: npx playwright test
+        working-directory: trustify-ui-tests
+        env:
+          TRUSTIFY_URL: "${{ env.TRUSTIFY_URL }}"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: trustify-ui-test-reports
+          path: trustify-ui-tests/playwright-report/

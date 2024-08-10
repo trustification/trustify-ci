@@ -129,7 +129,17 @@ jobs:
   check-images:
     runs-on: ubuntu-latest
     steps:
-      - name: Check operator image exists
+      - name: Download artifact
+        if: "${{ inputs.artifact != '' }}"
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.artifact }}
+          path: /tmp
+      - name: Load images
+        if: ${{ inputs.artifact != '' }}
+        run: |
+          docker load --input /tmp/${{ inputs.artifact }}.tar
+      - name: Check operator images exists
         if: ${{ inputs.operator_bundle != '' }}
         env:
           SERVER: ${{ inputs.server_image }}
@@ -142,13 +152,34 @@ jobs:
           fi
       - name: Check operator bundle image exists
         if: ${{ inputs.operator_bundle != '' }}
-        run: docker manifest inspect ${{ inputs.operator_bundle }}
+        run: |
+          if docker image inspect ${{ inputs.operator_bundle }} >/dev/null 2>&1; then
+              echo "Image exists locally"
+              docker image inspect ${{ inputs.operator_bundle }}
+          else
+              echo "Image does not exist locally"
+              docker manifest inspect ${{ inputs.operator_bundle }}
+          fi
       - name: Check server image exists
         if: ${{ inputs.server_image != '' }}
-        run: docker manifest inspect ${{ inputs.server_image }}
+        run: |
+          if docker image inspect ${{ inputs.server_image }} >/dev/null 2>&1; then
+              echo "Image exists locally"
+              docker image inspect ${{ inputs.server_image }}
+          else
+              echo "Image does not exist locally"
+              docker manifest inspect ${{ inputs.server_image }}
+          fi
       - name: Check server_db_image image exists
         if: ${{ inputs.server_db_image != '' }}
-        run: docker manifest inspect ${{ inputs.server_db_image }}
+        run: |
+          if docker image inspect ${{ inputs.server_db_image }} >/dev/null 2>&1; then
+              echo "Image exists locally"
+              docker image inspect ${{ inputs.server_db_image }}
+          else
+              echo "Image does not exist locally"
+              docker manifest inspect ${{ inputs.server_db_image }}
+          fi
 
   e2e-api-integration-tests:
     needs: check-images

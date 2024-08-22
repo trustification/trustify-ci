@@ -9,6 +9,7 @@ jobs:
   main-nightly:
     uses: ./.github/workflows/global-ci.yml
     with:
+      operator_bundle: "ghcr.io/trustification/trustify-operator-bundle:latest"
       api_tests_ref: main
       run_api_tests: true
       ui_tests_ref: main

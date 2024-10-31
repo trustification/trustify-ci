@@ -11,9 +11,3 @@ jobs:
     uses: ./.github/workflows/global-ci.yml
     with:
       operator_bundle: "ghcr.io/trustification/trustify-operator-bundle:latest"
-      # TODO
-      # We run this against ghcr.io/trustification/trustd:latest which does not contain the
-      # latest version of the UI. Therefore the UI tests will always fail.
-      # The repository https://github.com/trustification/trustify needs to find a way to continuously
-      # update the UI before this property is enabled
-      run_ui_tests: false

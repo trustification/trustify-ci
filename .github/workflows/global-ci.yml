@@ -15,11 +15,6 @@ on:
         type: string
         required: false
         default: ""
-      ui_image:
-        description: image uri for the ui (ie. ghcr.io/<namespace>/<image-name>:<tag>)
-        type: string
-        required: false
-        default: ""
       server_image:
         description: image uri for the server (ie. ghcr.io/<namespace>/<image-name>:<tag>)
         type: string
@@ -77,11 +72,6 @@ on:
         type: string
       operator_bundle:
         description: image uri for operator-bundle (ie. ghcr.io/<namespace>/<image-name>:<tag>). Must be pullable.
-        type: string
-        required: false
-        default: ""
-      ui_image:
-        description: image uri for the ui (ie. ghcr.io/<namespace>/<image-name>:<tag>)
         type: string
         required: false
         default: ""
@@ -152,12 +142,11 @@ jobs:
       - name: Check operator images exists
         if: ${{ inputs.operator_bundle != '' }}
         env:
-          UI: ${{ inputs.ui_image }}
           SERVER: ${{ inputs.server_image }}
           SERVER_DB: ${{ inputs.server_db_image }}
         run: |
           # My cheap way to check if any other image is set
-          if [ -n "${UI}${SERVER}${SERVER_DB}" ]; then
+          if [ -n "${SERVER}${SERVER_DB}" ]; then
             echo "::warning:: operator_bundle takes precendent over any other image specified!"
             echo "::warning:: consider removing the image and setting it on the Trustify CR."
           fi
@@ -170,16 +159,6 @@ jobs:
           else
               echo "Image does not exist locally"
               docker manifest inspect ${{ inputs.operator_bundle }}
-          fi
-      - name: Check ui image exists
-        if: ${{ inputs.ui_image != '' }}
-        run: |
-          if docker image inspect ${{ inputs.ui_image }} >/dev/null 2>&1; then
-              echo "Image exists locally"
-              docker image inspect ${{ inputs.ui_image }}
-          else
-              echo "Image does not exist locally"
-              docker manifest inspect ${{ inputs.ui_image }}
           fi
       - name: Check server image exists
         if: ${{ inputs.server_image != '' }}
@@ -256,7 +235,6 @@ jobs:
         uses: trustification/trustify-operator/.github/actions/make-bundle@main
         with:
           operator_bundle: ${{ env.operator_bundle }}
-          ui: ${{ inputs.ui_image }}
           server: ${{ inputs.server_image }}
           server_postgres: ${{ inputs.server_db_image }}
       - name: Push bundle
@@ -265,17 +243,15 @@ jobs:
 
       - name: prepare trustify-cr
         run: |
-          [ -n "${{ inputs.ui_image }}" ] && UI_IMAGE=\"${{ inputs.ui_image }}\" || UI_IMAGE=null
           [ -n "${{ inputs.server_image }}" ] && SERVER_IMAGE=\"${{ inputs.server_image }}\" || SERVER_IMAGE=null
           [ -n "${{ inputs.server_db_image }}" ] && SERVER_DB_IMAGE=\"${{ inputs.server_db_image }}\" || SERVER_DB_IMAGE=null
-          echo "UI_IMAGE=${UI_IMAGE}" >>"$GITHUB_ENV"
           echo "SERVER_IMAGE=${SERVER_IMAGE}" >>"$GITHUB_ENV"
           echo "SERVER_DB_IMAGE=${SERVER_DB_IMAGE}" >>"$GITHUB_ENV"
       - name: install trustify
         uses: trustification/trustify-operator/.github/actions/install-trustify@main
         with:
           operator-bundle-image: ${{ inputs.operator_bundle || env.operator_bundle }}
-          trustify-cr: '{"kind":"Trustify","apiVersion":"org.trustify/v1alpha1","metadata":{"name":"myapp"},"spec":{"uiImage":${{ env.UI_IMAGE }},"serverImage":${{ env.SERVER_IMAGE }},"dbImage":${{ env.SERVER_DB_IMAGE }},"imagePullPolicy":"IfNotPresent"}}'
+          trustify-cr: '{"kind":"Trustify","apiVersion":"org.trustify/v1alpha1","metadata":{"name":"myapp"},"spec":{"serverImage":${{ env.SERVER_IMAGE }},"dbImage":${{ env.SERVER_DB_IMAGE }},"imagePullPolicy":"IfNotPresent"}}'
       # end DRY
 
       - name: Wait for Ingress and expose Trustify URL
@@ -358,7 +334,6 @@ jobs:
         uses: trustification/trustify-operator/.github/actions/make-bundle@main
         with:
           operator_bundle: ${{ env.operator_bundle }}
-          ui: ${{ inputs.ui_image }}
           server: ${{ inputs.server_image }}
           server_postgres: ${{ inputs.server_db_image }}
       - name: Push bundle
@@ -367,17 +342,15 @@ jobs:
 
       - name: prepare trustify-cr
         run: |
-          [ -n "${{ inputs.ui_image }}" ] && UI_IMAGE=\"${{ inputs.ui_image }}\" || UI_IMAGE=null
           [ -n "${{ inputs.server_image }}" ] && SERVER_IMAGE=\"${{ inputs.server_image }}\" || SERVER_IMAGE=null
           [ -n "${{ inputs.server_db_image }}" ] && SERVER_DB_IMAGE=\"${{ inputs.server_db_image }}\" || SERVER_DB_IMAGE=null
-          echo "UI_IMAGE=${UI_IMAGE}" >>"$GITHUB_ENV"
           echo "SERVER_IMAGE=${SERVER_IMAGE}" >>"$GITHUB_ENV"
           echo "SERVER_DB_IMAGE=${SERVER_DB_IMAGE}" >>"$GITHUB_ENV"
       - name: install trustify
         uses: trustification/trustify-operator/.github/actions/install-trustify@main
         with:
           operator-bundle-image: ${{ inputs.operator_bundle || env.operator_bundle }}
-          trustify-cr: '{"kind":"Trustify","apiVersion":"org.trustify/v1alpha1","metadata":{"name":"myapp"},"spec":{"uiImage":${{ env.SERVER_IMAGE }},"serverImage":${{ env.SERVER_IMAGE }},"dbImage":${{ env.SERVER_DB_IMAGE }},"imagePullPolicy":"IfNotPresent"}}'
+          trustify-cr: '{"kind":"Trustify","apiVersion":"org.trustify/v1alpha1","metadata":{"name":"myapp"},"spec":{"serverImage":${{ env.SERVER_IMAGE }},"dbImage":${{ env.SERVER_DB_IMAGE }},"imagePullPolicy":"IfNotPresent"}}'
       # end DRY
 
       - name: Wait for Ingress and expose Trustify service

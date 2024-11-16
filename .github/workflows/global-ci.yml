@@ -377,7 +377,7 @@ jobs:
         uses: trustification/trustify-operator/.github/actions/install-trustify@main
         with:
           operator-bundle-image: ${{ inputs.operator_bundle || env.operator_bundle }}
-          trustify-cr: '{"kind":"Trustify","apiVersion":"org.trustify/v1alpha1","metadata":{"name":"myapp"},"spec":{"uiImage":${{ env.SERVER_IMAGE }},"serverImage":${{ env.SERVER_IMAGE }},"dbImage":${{ env.SERVER_DB_IMAGE }},"imagePullPolicy":"IfNotPresent"}}'
+          trustify-cr: '{"kind":"Trustify","apiVersion":"org.trustify/v1alpha1","metadata":{"name":"myapp"},"spec":{"uiImage":${{ env.UI_IMAGE }},"serverImage":${{ env.SERVER_IMAGE }},"dbImage":${{ env.SERVER_DB_IMAGE }},"imagePullPolicy":"IfNotPresent"}}'
       # end DRY
 
       - name: Wait for Ingress and expose Trustify service

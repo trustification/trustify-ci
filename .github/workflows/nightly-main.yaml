@@ -13,9 +13,4 @@ jobs:
       api_tests_ref: main
       run_api_tests: true
       ui_tests_ref: main
-      # TODO
-      # We run this against ghcr.io/trustification/trustd:latest which does not contain the
-      # latest version of the UI. Therefore the UI tests will always fail.
-      # The repository https://github.com/trustification/trustify needs to find a way to continuously
-      # update the UI before this property is enabled
-      run_ui_tests: false
+      run_ui_tests: true

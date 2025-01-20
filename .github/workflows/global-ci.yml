@@ -404,7 +404,7 @@ jobs:
         run: npx playwright install --with-deps
         working-directory: trustify-ui-tests
       - name: Run Playwright tests
-        run: npx playwright test
+        run: npm run test
         working-directory: trustify-ui-tests
         env:
           TRUSTIFY_URL: "${{ env.TRUSTIFY_URL }}"

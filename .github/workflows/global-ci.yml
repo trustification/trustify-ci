@@ -3,6 +3,11 @@ name: Run global Trustify CI tests
 on:
   workflow_call:
     inputs:
+      operator_branch:
+        description: The branch name for operator to be used for setup
+        required: false
+        type: string
+        default: main
       artifact:
         description: |
           The name of the component being tested, ie server etc.
@@ -68,6 +73,11 @@ on:
         default: main
   workflow_dispatch:
     inputs:
+      operator_branch:
+        description: The branch name for operator to be used for setup
+        required: false
+        type: string
+        default: main
       artifact:
         description: |
           The name of the component being tested, ie server etc.
@@ -239,7 +249,14 @@ jobs:
           path: /tmp
 
       - name: start minikube
+        uses: trustification/trustify-operator/.github/actions/start-minikube@release/0.2.z
+        if: "${{ startsWith(inputs.operator_branch, 'release/0.2.z') }}"
+        with:
+          memory: 'max'
+          cpus: 'max'
+      - name: start minikube
         uses: trustification/trustify-operator/.github/actions/start-minikube@main
+        if: "${{ startsWith(inputs.operator_branch, 'main') }}"
         with:
           memory: "max"
           cpus: "max"
@@ -272,7 +289,14 @@ jobs:
           echo "SERVER_IMAGE=${SERVER_IMAGE}" >>"$GITHUB_ENV"
           echo "SERVER_DB_IMAGE=${SERVER_DB_IMAGE}" >>"$GITHUB_ENV"
       - name: install trustify
+        uses: trustification/trustify-operator/.github/actions/install-trustify@release/0.2.z
+        if: "${{ inputs.operator_tag == 'release/0.2.z'}}"
+        with:
+          operator-bundle-image: ${{ inputs.operator_bundle || env.operator_bundle }}
+          trustify-cr: '{"kind":"Trustify","apiVersion":"org.trustify/v1alpha1","metadata":{"name":"myapp"},"spec":{"uiImage":${{ env.UI_IMAGE }},"serverImage":${{ env.SERVER_IMAGE }},"dbImage":${{ env.SERVER_DB_IMAGE }},"imagePullPolicy":"IfNotPresent"}}'
+      - name: install trustify
         uses: trustification/trustify-operator/.github/actions/install-trustify@main
+        if: "${{ inputs.operator_branch == 'main'}}"
         with:
           operator-bundle-image: ${{ inputs.operator_bundle || env.operator_bundle }}
           trustify-cr: '{"kind":"Trustify","apiVersion":"org.trustify/v1alpha1","metadata":{"name":"myapp"},"spec":{"uiImage":${{ env.UI_IMAGE }},"serverImage":${{ env.SERVER_IMAGE }},"dbImage":${{ env.SERVER_DB_IMAGE }},"imagePullPolicy":"IfNotPresent"}}'
@@ -341,7 +365,14 @@ jobs:
           path: /tmp
 
       - name: start minikube
+        uses: trustification/trustify-operator/.github/actions/start-minikube@release/0.2.z
+        if: "${{ startsWith(inputs.operator_branch, 'release/0.2.z') }}"
+        with:
+          memory: 'max'
+          cpus: 'max'
+      - name: start minikube
         uses: trustification/trustify-operator/.github/actions/start-minikube@main
+        if: "${{ startsWith(inputs.operator_branch, 'main') }}"
         with:
           memory: "max"
           cpus: "max"
@@ -374,7 +405,14 @@ jobs:
           echo "SERVER_IMAGE=${SERVER_IMAGE}" >>"$GITHUB_ENV"
           echo "SERVER_DB_IMAGE=${SERVER_DB_IMAGE}" >>"$GITHUB_ENV"
       - name: install trustify
+        uses: trustification/trustify-operator/.github/actions/install-trustify@release/0.2.z
+        if: "${{ inputs.operator_tag == 'release/0.2.z'}}"
+        with:
+          operator-bundle-image: ${{ inputs.operator_bundle || env.operator_bundle }}
+          trustify-cr: '{"kind":"Trustify","apiVersion":"org.trustify/v1alpha1","metadata":{"name":"myapp"},"spec":{"uiImage":${{ env.UI_IMAGE }},"serverImage":${{ env.SERVER_IMAGE }},"dbImage":${{ env.SERVER_DB_IMAGE }},"imagePullPolicy":"IfNotPresent"}}'
+      - name: install trustify
         uses: trustification/trustify-operator/.github/actions/install-trustify@main
+        if: "${{ inputs.operator_branch == 'main'}}"
         with:
           operator-bundle-image: ${{ inputs.operator_bundle || env.operator_bundle }}
           trustify-cr: '{"kind":"Trustify","apiVersion":"org.trustify/v1alpha1","metadata":{"name":"myapp"},"spec":{"uiImage":${{ env.UI_IMAGE }},"serverImage":${{ env.SERVER_IMAGE }},"dbImage":${{ env.SERVER_DB_IMAGE }},"imagePullPolicy":"IfNotPresent"}}'

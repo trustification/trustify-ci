@@ -1,0 +1,17 @@
+name: Run Trustify nightly release/0.2.z branch tests
+
+on:
+  schedule:
+    - cron: "5 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  main-nightly:
+    uses: ./.github/workflows/global-ci.yml
+    with:
+      operator_bundle: "ghcr.io/trustification/trustify-operator-bundle:0.2.z"
+      api_tests_ref: release/0.2.z
+      run_api_tests: true
+      ui_tests_ref: release/0.2.z
+      run_ui_tests: true
+      operator_branch: release/0.2.z

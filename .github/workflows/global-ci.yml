@@ -107,7 +107,7 @@ on:
         default: true
       tests_ref:
         description: |
-          The branch or PR of the trustify-ui-tests repository to clone.
+          The branch or PR of the trustify-tests repository to clone.
           For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
           For a branch, the reference format would just be the branch name.
           This input can be set automatically on a pull request by adding a string of the format:
@@ -208,7 +208,7 @@ jobs:
       - name: Checkout tests repo
         uses: actions/checkout@v4
         with:
-          repository: trustification/trustify-ui-tests
+          repository: trustification/trustify-tests
           path: trustify-tests
           ref: "${{ env.TESTS_REF }}"
 
@@ -333,7 +333,7 @@ jobs:
       - name: Checkout tests repo
         uses: actions/checkout@v4
         with:
-          repository: trustification/trustify-ui-tests
+          repository: trustification/trustify-tests
           path: trustify-tests
           ref: "${{ env.TESTS_REF }}"
 

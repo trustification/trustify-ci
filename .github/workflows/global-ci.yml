@@ -333,7 +333,7 @@ jobs:
       - name: Checkout tests repo
         uses: actions/checkout@v4
         with:
-          repository: trustification/trustify-tests
+          repository: trustification/trustify-ui-tests
           path: trustify-tests
           ref: "${{ env.TESTS_REF }}"
 
@@ -422,13 +422,13 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm ci
-        working-directory: trustify-ui-tests
+        working-directory: trustify-tests
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
-        working-directory: trustify-ui-tests
+        working-directory: trustify-tests
       - name: Run Playwright tests
         run: npm run test
-        working-directory: trustify-ui-tests
+        working-directory: trustify-tests
         env:
           TRUSTIFY_URL: "${{ env.TRUSTIFY_URL }}"
       - uses: actions/upload-artifact@v4

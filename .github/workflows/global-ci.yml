@@ -47,21 +47,9 @@ on:
         type: boolean
         required: false
         default: true
-      api_tests_ref:
+      tests_ref:
         description: |
-          The branch or PR of the trustify-api-tests repository to clone.
-          For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
-          For a branch, the reference format would just be the branch name.
-          This input can be set automatically on a pull request by adding a string of the format:
-            API tests PR: 140
-          replacing "140" with the appropriate PR number. This will make it easier to coordinate changes
-          that require updating the global tests as well.
-        required: false
-        type: string
-        default: main
-      ui_tests_ref:
-        description: |
-          The branch or PR of the trustify-ui-tests repository to clone.
+          The branch or PR of the trustify-tests repository to clone.
           For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
           For a branch, the reference format would just be the branch name.
           This input can be set automatically on a pull request by adding a string of the format:
@@ -117,19 +105,7 @@ on:
         type: boolean
         required: true
         default: true
-      api_tests_ref:
-        description: |
-          The branch or PR of the trustify-api-tests repository to clone.
-          For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
-          For a branch, the reference format would just be the branch name.
-          This input can be set automatically on a pull request by adding a string of the format:
-            Go tests PR: 140
-          replacing "140" with the appropriate PR number. This will make it easier to coordinate changes
-          that require updating the global tests as well.
-        required: false
-        type: string
-        default: main
-      ui_tests_ref:
+      tests_ref:
         description: |
           The branch or PR of the trustify-ui-tests repository to clone.
           For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
@@ -223,18 +199,18 @@ jobs:
         run: |
           PULL_REQUEST_NUMBER=$(echo ${body} | grep -oP '[A|a][P|p][I|i] [T|t]ests [P|p][R|r]: \K\d+' || true)
           [ -z "$PULL_REQUEST_NUMBER" ] \
-            && API_TESTS_REF=${{ inputs.api_tests_ref }} \
-            || API_TESTS_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
+            && TESTS_REF=${{ inputs.tests_ref }} \
+            || TESTS_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
 
-          echo "API_TESTS_REF=${API_TESTS_REF}" >>"$GITHUB_ENV"
-          echo "Using API_TESTS_REF \`${API_TESTS_REF}\`" >>"$GITHUB_STEP_SUMMARY"
+          echo "TESTS_REF=${TESTS_REF}" >>"$GITHUB_ENV"
+          echo "Using TESTS_REF \`${TESTS_REF}\`" >>"$GITHUB_STEP_SUMMARY"
 
-      - name: Checkout api tests repo
+      - name: Checkout tests repo
         uses: actions/checkout@v4
         with:
-          repository: trustification/trustify-api-tests
-          path: trustify-api-tests
-          ref: "${{ env.API_TESTS_REF }}"
+          repository: trustification/trustify-ui-tests
+          path: trustify-tests
+          ref: "${{ env.TESTS_REF }}"
 
       # TODO Should DRY this
       - name: set up docker buildx
@@ -317,16 +293,25 @@ jobs:
           echo $external_ip;
           echo "TRUSTIFY_URL=https://$(minikube ip)" >>$GITHUB_ENV
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-node@v4
         with:
-          distribution: "temurin"
-          java-version: "21"
-
-      - name: Run tests
-        run: mvn verify
-        working-directory: trustify-api-tests
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+        working-directory: trustify-tests
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+        working-directory: trustify-tests
+      - name: Run Playwright tests
+        run: npm run test
+        working-directory: trustify-tests
         env:
           TRUSTIFY_URL: "${{ env.TRUSTIFY_URL }}"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: trustify-api-test-reports
+          path: trustify-tests/playwright-report/
 
   e2e-ui-integration-tests:
     needs: check-images
@@ -339,18 +324,18 @@ jobs:
         run: |
           PULL_REQUEST_NUMBER=$(echo ${body} | grep -oP '[U|u][I|i] [T|t]ests [P|p][R|r]: \K\d+' || true)
           [ -z "$PULL_REQUEST_NUMBER" ] \
-            && UI_TESTS_REF=${{ inputs.ui_tests_ref }} \
-            || UI_TESTS_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
+            && TESTS_REF=${{ inputs.tests_ref }} \
+            || TESTS_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
 
-          echo "UI_TESTS_REF=${UI_TESTS_REF}" >>"$GITHUB_ENV"
-          echo "Using UI_TESTS_REF \`${UI_TESTS_REF}\`" >>"$GITHUB_STEP_SUMMARY"
+          echo "TESTS_REF=${TESTS_REF}" >>"$GITHUB_ENV"
+          echo "Using TESTS_REF \`${TESTS_REF}\`" >>"$GITHUB_STEP_SUMMARY"
 
-      - name: Checkout ui tests repo
+      - name: Checkout tests repo
         uses: actions/checkout@v4
         with:
           repository: trustification/trustify-ui-tests
-          path: trustify-ui-tests
-          ref: "${{ env.UI_TESTS_REF }}"
+          path: trustify-tests
+          ref: "${{ env.TESTS_REF }}"
 
       # TODO Should DRY this
       - name: set up docker buildx
@@ -437,17 +422,17 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm ci
-        working-directory: trustify-ui-tests
+        working-directory: trustify-tests
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
-        working-directory: trustify-ui-tests
+        working-directory: trustify-tests
       - name: Run Playwright tests
         run: npm run test
-        working-directory: trustify-ui-tests
+        working-directory: trustify-tests
         env:
           TRUSTIFY_URL: "${{ env.TRUSTIFY_URL }}"
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: trustify-ui-test-reports
-          path: trustify-ui-tests/playwright-report/
+          path: trustify-tests/playwright-report/

@@ -10,8 +10,7 @@ jobs:
     uses: ./.github/workflows/global-ci.yml
     with:
       operator_bundle: "ghcr.io/trustification/trustify-operator-bundle:0.2.z"
-      api_tests_ref: release/0.2.z
+      tests_ref: release/0.2.z
       run_api_tests: true
-      ui_tests_ref: release/0.2.z
       run_ui_tests: true
       operator_branch: release/0.2.z

@@ -231,7 +231,7 @@ jobs:
           memory: 'max'
           cpus: 'max'
       - name: start minikube
-        uses: trustification/trustify-operator/.github/actions/start-minikube@release/0.2.z
+        uses: trustification/trustify-operator/.github/actions/start-minikube@release/0.3.z
         if: "${{ startsWith(inputs.operator_branch, 'release/0.2.z') }}"
         with:
           memory: 'max'
@@ -370,7 +370,7 @@ jobs:
           memory: 'max'
           cpus: 'max'
       - name: start minikube
-        uses: trustification/trustify-operator/.github/actions/start-minikube@release/0.2.z
+        uses: trustification/trustify-operator/.github/actions/start-minikube@release/0.3.z
         if: "${{ startsWith(inputs.operator_branch, 'release/0.2.z') }}"
         with:
           memory: 'max'

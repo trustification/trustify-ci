@@ -305,7 +305,7 @@ jobs:
           echo $external_ip;
           echo "TRUSTIFY_URL=https://$(minikube ip)" >>$GITHUB_ENV
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: "npm"
@@ -443,7 +443,7 @@ jobs:
           echo "End point ready:" &&
           echo $external_ip;
           echo "TRUSTIFY_URL=https://$(minikube ip)" >>$GITHUB_ENV
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: "npm"
